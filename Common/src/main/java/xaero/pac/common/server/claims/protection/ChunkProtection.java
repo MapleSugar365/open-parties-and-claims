@@ -264,12 +264,22 @@ public class ChunkProtection
 		this.cantPickupItemsInTickCache = cantPickItemsCache;
 		this.cantPickupXPInTickCache = cantPickupXPInTickCache;
 		this.fullPasses = fullPasses;
+
+        wildernessDimensionsSet = new HashSet<>();
+        for(String s : ServerConfig.CONFIG.wildernessDimensionsList.get())
+            wildernessDimensionsSet.add(ResourceLocation.parse(s));
+
 		try {
 			createDeployerClass = Class.forName(CREATE_DEPLOYER_CLASS_NAME);
 		} catch (ClassNotFoundException e) {
 			createDeployerClass = null;
 		}
-	}
+    }
+
+    public boolean isWildernessProtected(ResourceLocation dimension) {
+        boolean contains = wildernessDimensionsSet.contains(dimension);
+        return ServerConfig.CONFIG.wildernessDimensionsListType.get() == ServerConfig.ConfigListType.ONLY && contains || ServerConfig.CONFIG.wildernessDimensionsListType.get() == ServerConfig.ConfigListType.ALL_BUT && !contains;
+    }
 
 	public void setServerData(IServerData<CM, ?> serverData) {
 		this.serverData = serverData;
@@ -311,7 +321,7 @@ public class ChunkProtection
 
 	private InteractionTargetResult entityAccessCheck(IPlayerConfigManager playerConfigs, IPlayerConfig claimConfig, Entity e, Entity from, Entity accessor, UUID accessorId, boolean attack, boolean emptyHand, boolean exceptions, boolean checkingInverted) {
 		if(e instanceof Player && e != accessor) {
-			boolean chunkProtected = claimConfig.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS);
+			boolean chunkProtected = (claimConfig.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(e.level().dimension().location())) || claimConfig.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS);
 			InteractionTargetResult result = InteractionTargetResult.ALLOW;
 			if (chunkProtected) {
 				Entity usedOptionBase = claimConfig.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_PLAYERS_REDIRECT) ? accessor : from;
@@ -498,7 +508,7 @@ public class ChunkProtection
 	public boolean hasChunkAccess(IPlayerConfigAPI claimConfig, Entity accessor, UUID accessorId) {
 		if(!ServerConfig.CONFIG.claimsEnabled.get())
 			return true;
-		if(claimConfig == null || !claimConfig.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
+		if(claimConfig == null || (claimConfig.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(accessor.level().dimension().location())) || !claimConfig.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
 			return true;
 		if(accessor != null) {
 			if(accessorId == null)
@@ -1042,7 +1052,7 @@ public class ChunkProtection
 		IPlayerConfigManager playerConfigs = serverData.getPlayerConfigs();
 		IPlayerChunkClaim claim = claimsManager.get(target.level().dimension().location(), target.chunkPosition());
 		IPlayerConfig config = getClaimConfig(playerConfigs, claim);
-		return config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS) &&
+		return ((config.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(target.level().dimension().location())) || config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS)) &&
 				config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_ENTITIES_FROM_FIRE) &&
 				isProtectable(target);
 	}
@@ -1181,7 +1191,7 @@ public class ChunkProtection
 			ChunkPos chunkPos = new ChunkPos(blockPos);
 			IPlayerChunkClaim claim = claimsManager.get(world.dimension().location(), chunkPos);
 			IPlayerConfig config = getClaimConfig(playerConfigs, claim);
-			if(config != null && (!config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS) || !config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_BLOCKS_FROM_EXPLOSIONS)))
+			if(config != null && ((config.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(world.dimension().location())) || !config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS) || !config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_BLOCKS_FROM_EXPLOSIONS)))
 				continue;
 			if(config != null)
 				positions.remove();
@@ -1192,7 +1202,7 @@ public class ChunkProtection
 			Entity entity = entities.next();
 			IPlayerChunkClaim claim = claimsManager.get(world.dimension().location(), entity.chunkPosition());
 			IPlayerConfig config = getClaimConfig(playerConfigs, claim);
-			if(config != null && !config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
+			if(config != null && (config.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(world.dimension().location())) || !config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
 				config = null;
 			if(config != null && config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_ENTITIES_FROM_EXPLOSIONS) &&
 					(!(damager instanceof Player) && isProtectable(entity) ||
@@ -1254,7 +1264,7 @@ public class ChunkProtection
 		IPlayerChunkClaim claim = claimsManager.get(world.dimension().location(), new ChunkPos(pos));
 		IPlayerConfigManager playerConfigs = serverData.getPlayerConfigs();
 		IPlayerConfig claimConfig = getClaimConfig(playerConfigs, claim);
-		return claimConfig.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS) && claimConfig.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_FROM_FIRE_SPREAD);
+		return ((claimConfig.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(world.dimension().location())) || claimConfig.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS)) && claimConfig.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_FROM_FIRE_SPREAD);
 	}
 
 	public boolean onCropTrample(IServerData<CM, ?> serverData, Entity entity, BlockPos pos) {
@@ -1536,7 +1546,7 @@ public class ChunkProtection
 		IPlayerChunkClaim claim = claimsManager.get(world.dimension().location(), new ChunkPos(pos));
 		IPlayerConfigManager playerConfigs = serverData.getPlayerConfigs();
 		IPlayerConfig config = getClaimConfig(playerConfigs, claim);
-		if(!config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
+		if((config.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(world.dimension().location())) || !config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
 			return;
 		IPlayerConfigOptionSpecAPI<Integer> blockSpecificOption =
 				block instanceof ButtonBlock ?
@@ -1620,7 +1630,7 @@ public class ChunkProtection
 		IPlayerChunkClaim claim = claimsManager.get(level.dimension().location(), entity.chunkPosition());
 		IPlayerConfigManager playerConfigs = serverData.getPlayerConfigs();
 		IPlayerConfig config = getClaimConfig(playerConfigs, claim);
-		if(!config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
+		if((config.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(level.dimension().location())) || !config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
 			return;
 		if(config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_ENTITIES_FROM_PLAYERS) == 0 &&
 				config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_ENTITIES_FROM_MOBS) == 0 &&
@@ -1696,7 +1706,7 @@ public class ChunkProtection
 		IPlayerChunkClaim claim = claimsManager.get(world.dimension().location(), new ChunkPos(pos));
 		IPlayerConfigManager playerConfigs = serverData.getPlayerConfigs();
 		IPlayerConfig config = getClaimConfig(playerConfigs, claim);
-		if(!config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
+		if((config.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(world.dimension().location())) || !config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
 			return false;
 		if(config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_NETHER_PORTALS_PLAYERS) == 0 &&
 				config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_NETHER_PORTALS_MOBS) == 0 &&
@@ -1727,7 +1737,7 @@ public class ChunkProtection
 		IPlayerChunkClaim claim = claimsManager.get(world.dimension().location(), new ChunkPos(pos));
 		IPlayerConfigManager playerConfigs = serverData.getPlayerConfigs();
 		IPlayerConfig config = getClaimConfig(playerConfigs, claim);
-		return config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS) && config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_RAIDS);
+		return ((config.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(world.dimension().location())) || config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS)) && config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_RAIDS);
 	}
 
 	public boolean onMobSpawn(IServerData<CM, ?> serverData, Entity entity, double x, double y, double z, MobSpawnType spawnReason) {
@@ -1736,7 +1746,7 @@ public class ChunkProtection
 		IPlayerChunkClaim claim = claimsManager.get(entity.level().dimension().location(), new ChunkPos(BlockPos.containing(x, y, z)));
 		IPlayerConfigManager playerConfigs = serverData.getPlayerConfigs();
 		IPlayerConfig config = getClaimConfig(playerConfigs, claim);
-		if(!config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
+		if((config.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(entity.level().dimension().location())) || !config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
 			return false;
 		IPlayerConfigOptionSpecAPI<Boolean> option;
 		boolean hostile = entityHelper.isHostile(entity);
@@ -1799,7 +1809,7 @@ public class ChunkProtection
 		IPlayerChunkClaim claim = claimsManager.get(itemEntity.level().dimension().location(), itemEntity.chunkPosition());
 		IPlayerConfigManager playerConfigs = serverData.getPlayerConfigs();
 		IPlayerConfig config = getClaimConfig(playerConfigs, claim);
-		if(!config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
+		if((config.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(itemEntity.level().dimension().location())) || !config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
 			return false;
 		Entity thrower = getEntityById(ServerLevelHelper.getServerLevel(itemEntity.level()), throwerId);
 		Entity result = shouldPreventToss(config, itemEntity, thrower, throwerId, null);
@@ -1899,7 +1909,7 @@ public class ChunkProtection
 		IPlayerChunkClaim claim = claimsManager.get(lootEntity.level().dimension().location(), lootEntity.chunkPosition());
 		IPlayerConfigManager playerConfigs = serverData.getPlayerConfigs();
 		IPlayerConfig config = getClaimConfig(playerConfigs, claim);
-		if(!config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
+		if((config.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(lootEntity.level().dimension().location())) || !config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
 			return false;
 		return shouldStopMobLoot(config, accessor, accessorId) &&
 				(!(accessor instanceof Player player) || !isAllowedStaticFakePlayerAction(serverData, player, lootEntity.blockPosition()));
@@ -1941,7 +1951,7 @@ public class ChunkProtection
 		}
 		if(isAllowedToGrief(entity, accessor, accessorId, config, true, entitiesAllowedToGriefDroppedItems, null, droppedItemAccessEntityGroups))
 			return false;
-		if(config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS)) {
+		if((config.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(accessor.level().dimension().location())) || config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS)) {
 			if (!hasChunkAccess(config, accessor, accessorId)) {
 				IPlayerConfigOptionSpecAPI<Integer> usedOption = protectionOptionGetter.apply(config, entity, accessor);
 				shouldPrevent = checkProtectionLeveledOption(usedOption, config, accessor, accessorId);
@@ -2014,7 +2024,7 @@ public class ChunkProtection
 		boolean differentThrower = !Objects.equals(firstThrower, secondThrower);
 		boolean differentOwner =  !Objects.equals(firstOwner, secondOwner);
 		boolean differentLootOwner = !Objects.equals(ServerCore.getLootOwner(first), ServerCore.getLootOwner(second));
-		boolean firstProtected = firstConfig.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS);
+		boolean firstProtected = (firstConfig.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(first.level().dimension().location())) || firstConfig.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS);
 		int firstItemPlayerProtection = !firstProtected ? 0 : firstConfig.getEffective(playerOption);
 		int firstItemMobsProtection = !firstProtected || mobOption == null ? 0 : firstConfig.getEffective(mobOption);
 		if(differentThrower || differentOwner || differentLootOwner) {
@@ -2047,7 +2057,7 @@ public class ChunkProtection
 		UUID firstClaimOwner = firstConfig.getPlayerId();
 		UUID secondClaimOwner = secondConfig.getPlayerId();
 		boolean sameClaimOwner = Objects.equals(firstClaimOwner, secondClaimOwner);
-		boolean secondProtected = secondConfig.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS);
+		boolean secondProtected = (secondConfig.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(second.level().dimension().location())) || secondConfig.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS);
 		int secondItemPlayerProtection = !secondProtected ? 0 : secondConfig.getEffective(playerOption);
 		if(firstItemPlayerProtection != secondItemPlayerProtection || !sameClaimOwner && secondItemPlayerProtection > 1)//party-based protection still matters even if it's equal
 			return true;
