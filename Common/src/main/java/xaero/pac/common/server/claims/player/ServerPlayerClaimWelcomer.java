@@ -86,9 +86,9 @@ public class ServerPlayerClaimWelcomer {
 		}
 		subTitleText = subTitleText.withStyle(s -> s.withColor(isOwner ? ChatFormatting.DARK_GREEN : hasAccess ? ChatFormatting.GOLD : ChatFormatting.DARK_RED));
 
-		MutableComponent subTitle = Component.literal("□ ").withStyle(s -> s.withColor(claimColor));
+		MutableComponent subTitle = Component.literal("> ").withStyle(s -> s.withColor(claimColor));
 		subTitle.getSiblings().add(subTitleText);
-		subTitle.getSiblings().add(Component.literal(" □").withStyle(s -> s.withColor(claimColor)));
+		subTitle.getSiblings().add(Component.literal(" <").withStyle(s -> s.withColor(claimColor)));
 		ClientboundSetActionBarTextPacket packet = new ClientboundSetActionBarTextPacket(subTitle);
 		player.connection.send(packet);
 
