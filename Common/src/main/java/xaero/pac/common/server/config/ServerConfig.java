@@ -70,6 +70,8 @@ public class ServerConfig {
 	public final ModConfigSpec.BooleanValue alwaysProtectBlocksFromEnchantments;
 	public final ModConfigSpec.BooleanValue reducedBoatEntityCollisions;
 	public final ModConfigSpec.IntValue maxClaimDistance;
+	public final ModConfigSpec.ConfigValue<List<? extends String>> wildernessDimensionsList;
+	public final ModConfigSpec.EnumValue<ConfigListType> wildernessDimensionsListType;
 	public final ModConfigSpec.ConfigValue<List<? extends String>> claimableDimensionsList;
 	public final ModConfigSpec.EnumValue<ConfigListType> claimableDimensionsListType;
 	public final ModConfigSpec.BooleanValue allowExistingClaimsInUnclaimableDimensions;
@@ -98,7 +100,7 @@ public class ServerConfig {
 			.comment("The default language used for server-side localization for players that don't have the mod installed.")
 			.translation("gui.xaero_pac_config_default_language")
 			.worldRestart()
-			.define("defaultLanguage", "en_us");
+			.define("defaultLanguage", "zh_cn");
 
 		autosaveInterval = builder
 			.comment("How often to auto-save modified data, e.g. parties, claims, player configs (in minutes).")
@@ -163,7 +165,22 @@ public class ServerConfig {
 			.defineInRange("partyExpirationCheckInterval", 6 * 60, 10, Integer.MAX_VALUE);
 		
 		builder.pop();
+		builder.push("wilderness");
+
+		wildernessDimensionsListType = builder
+			.comment("The type of the list defined in \"wildernessDimensionsList\". ONLY - include only the listed dimensions. ALL_BUT - include all but the listed dimensions.")
+			.worldRestart()
+		   	.defineEnum("wildernessDimensionsListType", ConfigListType.ALL_BUT);
 		
+		wildernessDimensionsList = builder
+			.comment("""
+					Dimensions to include/exclude from having wilderness protection, depending on the list type in "wildernessDimensionsListType".
+					For example ["minecraft:overworld", "minecraft:the_nether"].
+					By default the list is empty and of type ALL_BUT, meaning that all dimensions have wilderness protection.""")
+			.worldRestart()
+			.defineListAllowEmpty(Lists.newArrayList("wildernessDimensionsList"), ArrayList::new, s -> s instanceof String);
+
+		builder.pop();
 		builder.push("claims");
 
 		claimsEnabled = builder
@@ -196,7 +213,7 @@ public class ServerConfig {
 					This value can be overridden with a player permission.""")
 			.translation("gui.xaero_pac_config_max_player_claims")
 			.worldRestart()
-			.defineInRange("maxPlayerClaims", 500, 0, Integer.MAX_VALUE);
+			.defineInRange("maxPlayerClaims", 50, 0, Integer.MAX_VALUE);
 		
 		maxPlayerClaimForceloads = builder
 			.comment("""
@@ -204,7 +221,7 @@ public class ServerConfig {
 					This value can be overridden with a player permission.""")
 			.translation("gui.xaero_pac_config_max_player_forceloads")
 			.worldRestart()
-			.defineInRange("maxPlayerClaimForceloads", 10, 0, Integer.MAX_VALUE);
+			.defineInRange("maxPlayerClaimForceloads", 6, 0, Integer.MAX_VALUE);
 
 		maxPlayerClaimsPermission = builder
 			.comment("The permission that should override the default \"maxPlayerClaims\" value. Set it to an empty string to never check permissions. The used permission system can be configured with \"permissionSystem\".")
