@@ -28,6 +28,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
+import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -291,6 +292,11 @@ public class ChunkProtection
 
 	public void removeFullPass(@Nonnull UUID entityId){
 		fullPasses.remove(entityId);
+	}
+
+	public void sendActionBarMessage(ServerPlayer player, Component message) {
+		ClientboundSetActionBarTextPacket packet = new ClientboundSetActionBarTextPacket(message);
+		player.connection.send(packet);
 	}
 
 	private boolean hasActiveFullPass(Entity entity){
@@ -707,9 +713,9 @@ public class ChunkProtection
 		InteractionTargetResult result = blockAccessCheck(block, config, entity, accessor, accessorId, emptyHand, leftClick);
 		if(result == InteractionTargetResult.PROTECT) {
 			if(messageReceiver instanceof ServerPlayer player) {
-				player.sendSystemMessage(serverData.getAdaptiveLocalizer().getFor(player, hand == null ? CANT_INTERACT_BLOCK : hand == InteractionHand.MAIN_HAND ? CANT_INTERACT_BLOCK_MAIN : CANT_INTERACT_BLOCK_OFF));
+				sendActionBarMessage(player, serverData.getAdaptiveLocalizer().getFor(player, hand == null ? CANT_INTERACT_BLOCK : hand == InteractionHand.MAIN_HAND ? CANT_INTERACT_BLOCK_MAIN : CANT_INTERACT_BLOCK_OFF));
 				if (message != null)
-					player.sendSystemMessage(serverData.getAdaptiveLocalizer().getFor(player, message));
+					sendActionBarMessage(player, serverData.getAdaptiveLocalizer().getFor(player, message));
 			}
 		}
 		return result;
@@ -733,7 +739,7 @@ public class ChunkProtection
 		Entity messageReceiver = !messages ? null : accessor == null ? entity : accessor;
 		if(completelyDisabledBlocks.contains(block)){
 			if(messageReceiver instanceof ServerPlayer player)
-				player.sendSystemMessage(serverData.getAdaptiveLocalizer().getFor((ServerPlayer) entity, BLOCK_DISABLED));
+				sendActionBarMessage(player, serverData.getAdaptiveLocalizer().getFor((ServerPlayer) entity, BLOCK_DISABLED));
 			return true;
 		}
 		if(entity != null && hasActiveFullPass(entity))//uses custom protection
@@ -890,7 +896,7 @@ public class ChunkProtection
 		Item item = itemStack.getItem();
 		if(completelyDisabledItems.contains(item)) {
 			if(messages && entity instanceof ServerPlayer serverPlayer)
-				entity.sendSystemMessage(serverData.getAdaptiveLocalizer().getFor(serverPlayer, hand == null ? ITEM_DISABLED_ANY : hand == InteractionHand.MAIN_HAND ? ITEM_DISABLED_MAIN : ITEM_DISABLED_OFF));
+				sendActionBarMessage(serverPlayer, serverData.getAdaptiveLocalizer().getFor(serverPlayer, hand == null ? ITEM_DISABLED_ANY : hand == InteractionHand.MAIN_HAND ? ITEM_DISABLED_MAIN : ITEM_DISABLED_OFF));
 			return true;
 		}
 		if(hasActiveFullPass(entity))
@@ -930,7 +936,7 @@ public class ChunkProtection
 				}
 		}
 		if(messages && shouldProtect && entity instanceof ServerPlayer)
-			entity.sendSystemMessage(serverData.getAdaptiveLocalizer().getFor((ServerPlayer) entity, hand == null ? USE_ITEM_ANY : hand == InteractionHand.MAIN_HAND ? USE_ITEM_MAIN : USE_ITEM_OFF));
+			sendActionBarMessage((ServerPlayer) entity, serverData.getAdaptiveLocalizer().getFor((ServerPlayer) entity, hand == null ? USE_ITEM_ANY : hand == InteractionHand.MAIN_HAND ? USE_ITEM_MAIN : USE_ITEM_OFF));
 		return shouldProtect;
 	}
 
@@ -976,7 +982,7 @@ public class ChunkProtection
 		Entity messageReceiver = !messages ? null : (interactingEntityIndirect == null ? interactingEntity : interactingEntityIndirect);
 		if (!attack && completelyDisabledEntities.contains(target.getType())) {
 			if (hand != InteractionHand.OFF_HAND && messageReceiver instanceof ServerPlayer player)
-				player.sendSystemMessage(serverData.getAdaptiveLocalizer().getFor(player, ENTITY_DISABLED));
+				sendActionBarMessage(player, serverData.getAdaptiveLocalizer().getFor(player, ENTITY_DISABLED));
 			return true;
 		}
 		if (interactingEntity != null && hasActiveFullPass(interactingEntity))//uses custom protection
@@ -1011,10 +1017,10 @@ public class ChunkProtection
 			//checking checkEntityExceptions before shouldProtectEntity so that ALLOW isn't overridden with PASS
 			if (targetResult == InteractionTargetResult.PROTECT) {
 				if (messageReceiver instanceof ServerPlayer player) {
-					messageReceiver.sendSystemMessage(serverData.getAdaptiveLocalizer().getFor(player, hand == null ? CANT_INTERACT_ENTITY : hand == InteractionHand.MAIN_HAND ? CANT_INTERACT_ENTITY_MAIN : CANT_INTERACT_ENTITY_OFF));
+					sendActionBarMessage(player, serverData.getAdaptiveLocalizer().getFor(player, hand == null ? CANT_INTERACT_ENTITY : hand == InteractionHand.MAIN_HAND ? CANT_INTERACT_ENTITY_MAIN : CANT_INTERACT_ENTITY_OFF));
 					if (needsItemCheck) {
 						Component message = hand == InteractionHand.MAIN_HAND ? ENTITY_TRY_EMPTY_MAIN : ENTITY_TRY_EMPTY_OFF;
-						messageReceiver.sendSystemMessage(serverData.getAdaptiveLocalizer().getFor(player, message));
+						sendActionBarMessage(player, serverData.getAdaptiveLocalizer().getFor(player, message));
 					}
 				}
 				//OpenPartiesAndClaims.LOGGER.info("stopped {} interacting with {}", entity, target);
@@ -1232,7 +1238,7 @@ public class ChunkProtection
 		}
 		if(checkProtectionLeveledOption(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_CHORUS_FRUIT, claimConfig, accessor, accessorId) && !hasChunkAccess(claimConfig, accessor, accessorId)) {
 			if(entity instanceof ServerPlayer)
-				entity.sendSystemMessage(serverData.getAdaptiveLocalizer().getFor((ServerPlayer) entity, CANT_CHORUS));
+				sendActionBarMessage((ServerPlayer) entity, serverData.getAdaptiveLocalizer().getFor((ServerPlayer) entity, CANT_CHORUS));
 			//OpenPartiesAndClaims.LOGGER.info("stopped {} from teleporting to {}", entity, pos);
 			return true;
 		}
@@ -1308,7 +1314,7 @@ public class ChunkProtection
 			return false;
 		if(completelyDisabledItems.contains(itemStack.getItem())) {
 			if(messages && entity instanceof ServerPlayer player)
-				player.sendSystemMessage(serverData.getAdaptiveLocalizer().getFor(player, hand == InteractionHand.MAIN_HAND ? ITEM_DISABLED_MAIN : ITEM_DISABLED_OFF));
+				sendActionBarMessage(player, serverData.getAdaptiveLocalizer().getFor(player, hand == InteractionHand.MAIN_HAND ? ITEM_DISABLED_MAIN : ITEM_DISABLED_OFF));
 			return true;
 		}
 		if(entity != null && hasActiveFullPass(entity))//uses custom protection
@@ -1322,7 +1328,7 @@ public class ChunkProtection
 			if (additionalBannedItems.contains(itemStack.getItem()) &&
 					onItemRightClick(serverData, hand, itemStack, pos, living, false)) {//only configured items on purpose
 				if(messages && living instanceof ServerPlayer)
-					living.sendSystemMessage(serverData.getAdaptiveLocalizer().getFor((ServerPlayer) living, hand == null ? CANT_APPLY_ITEM_ANY : hand == InteractionHand.MAIN_HAND ? CANT_APPLY_ITEM_THIS_CLOSE_MAIN : CANT_APPLY_ITEM_THIS_CLOSE_OFF));
+					sendActionBarMessage((ServerPlayer) living, serverData.getAdaptiveLocalizer().getFor((ServerPlayer) living, hand == null ? CANT_APPLY_ITEM_ANY : hand == InteractionHand.MAIN_HAND ? CANT_APPLY_ITEM_THIS_CLOSE_MAIN : CANT_APPLY_ITEM_THIS_CLOSE_OFF));
 				return true;
 			}
 		}
@@ -1339,7 +1345,7 @@ public class ChunkProtection
 			|| !itemUseAtOffsetAllowed && pos2 != null && !(chunkPos2 = new ChunkPos(pos2)).equals(chunkPos) && applyItemAccessCheck(serverData, chunkPos2, entity, world, itemStack)
 				){
 			if(messages && entity instanceof ServerPlayer player)
-				player.sendSystemMessage(serverData.getAdaptiveLocalizer().getFor(player, hand == null ? CANT_APPLY_ITEM_ANY : hand == InteractionHand.MAIN_HAND ? CANT_APPLY_ITEM_MAIN : CANT_APPLY_ITEM_OFF));
+				sendActionBarMessage(player, serverData.getAdaptiveLocalizer().getFor(player, hand == null ? CANT_APPLY_ITEM_ANY : hand == InteractionHand.MAIN_HAND ? CANT_APPLY_ITEM_MAIN : CANT_APPLY_ITEM_OFF));
 			return true;
 		}
 		return false;
@@ -2089,7 +2095,7 @@ public class ChunkProtection
 	public boolean onProjectileEntityImpact(IServerData<CM, ?> serverData, Projectile projectile, EntityHitResult hitResult){
 		boolean shouldProtect = onEntityInteraction(serverData, projectile.getOwner(), projectile, hitResult.getEntity(), null, null, false, false, false);
 		if(shouldProtect && projectile.getOwner() instanceof ServerPlayer player)
-			player.sendSystemMessage(serverData.getAdaptiveLocalizer().getFor(player, serverData.getChunkProtection().PROJECTILE_HIT_ENTITY));
+			sendActionBarMessage(player, serverData.getAdaptiveLocalizer().getFor(player, serverData.getChunkProtection().PROJECTILE_HIT_ENTITY));
 		return shouldProtect;
 	}
 
@@ -2104,7 +2110,7 @@ public class ChunkProtection
 			shouldProtect = onBlockInteraction(serverData, null, projectile, null, null, world, offPos, null, false, false);
 		}
 		if(shouldProtect && projectile.getOwner() instanceof ServerPlayer player)
-			player.sendSystemMessage(serverData.getAdaptiveLocalizer().getFor(player, PROJECTILE_HIT_BLOCK));
+			sendActionBarMessage(player, serverData.getAdaptiveLocalizer().getFor(player, PROJECTILE_HIT_BLOCK));
 		return shouldProtect;
 	}
 
@@ -2283,7 +2289,7 @@ public class ChunkProtection
 
 	public boolean onCreateGlueSelection(IServerData<CM, ?> serverData, BlockPos from, BlockPos to, ServerPlayer player) {
 		if(onBlockBounds(serverData, from, to, player)){
-			player.sendSystemMessage(serverData.getAdaptiveLocalizer().getFor(player, CANT_USE_SUPER_GLUE));
+			sendActionBarMessage(player, serverData.getAdaptiveLocalizer().getFor(player, CANT_USE_SUPER_GLUE));
 			return true;
 		}
 		return false;
@@ -2300,7 +2306,7 @@ public class ChunkProtection
 		BlockPos minPos = BlockPos.containing(boundingBox.minX, boundingBox.minY, boundingBox.minZ);
 		BlockPos maxPos = BlockPos.containing(boundingBox.maxX - 1, boundingBox.maxY - 1, boundingBox.maxZ - 1);
 		if(onBlockBounds(serverData, minPos, maxPos, player)){
-			player.sendSystemMessage(serverData.getAdaptiveLocalizer().getFor(player, CANT_REMOVE_SUPER_GLUE));
+			sendActionBarMessage(player, serverData.getAdaptiveLocalizer().getFor(player, CANT_REMOVE_SUPER_GLUE));
 			return true;
 		}
 		return false;
