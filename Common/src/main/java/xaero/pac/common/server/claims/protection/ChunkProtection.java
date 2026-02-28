@@ -514,9 +514,9 @@ public class ChunkProtection
 	public boolean hasChunkAccess(IPlayerConfigAPI claimConfig, Entity accessor, UUID accessorId) {
 		if(!ServerConfig.CONFIG.claimsEnabled.get())
 			return true;
-		if(claimConfig == null || (claimConfig.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(accessor.level().dimension().location())) || !claimConfig.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
-			return true;
 		if(accessor != null) {
+			if(claimConfig == null || (claimConfig.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(accessor.level().dimension().location())) || !claimConfig.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS))
+				return true;
 			if(accessorId == null)
 				accessorId = accessor.getUUID();
 			boolean isAServerPlayer = accessor instanceof ServerPlayer;
