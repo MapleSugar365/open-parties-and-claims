@@ -177,6 +177,7 @@ public class ChunkProtection
 	private final Map<String, ChunkProtectionExceptionGroup<EntityType<?>>> entityAccessEntityGroups;
 	private final Map<String, ChunkProtectionExceptionGroup<EntityType<?>>> droppedItemAccessEntityGroups;
 	private final BlockPos.MutableBlockPos reusableBlockPos;
+	private final Set<ResourceLocation> wildernessDimensionsSet;
 
 	private boolean ignoreChunkEnter = false;
 	private final Map<Entity, Set<ChunkPos>> cantPickupItemsInTickCache;
