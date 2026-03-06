@@ -1,6 +1,6 @@
 /*
  * Open Parties and Claims - adds chunk claims and player parties to Minecraft
- * Copyright (C) 2022-2026, Xaero <xaero1996@gmail.com> and contributors
+ * Copyright (C) 2022-2025, Xaero <xaero1996@gmail.com> and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of version 3 of the GNU Lesser General Public License
@@ -28,7 +28,6 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
-import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -56,6 +55,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.*;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import org.apache.commons.lang3.function.TriFunction;
+import xaero.pac.OpenPartiesAndClaims;
 import xaero.pac.common.claims.player.IPlayerChunkClaim;
 import xaero.pac.common.claims.player.api.IPlayerChunkClaimAPI;
 import xaero.pac.common.parties.party.IPartyPlayerInfo;
@@ -93,14 +93,12 @@ public class ChunkProtection
 
 	public static final UUID CREATE_DEPLOYER_UUID = UUID.fromString("9e2faded-cafe-4ec2-c314-dad129ae971d");
 	public static final UUID CREATE_PLOUGH_UUID = UUID.fromString("9e2faded-eeee-4ec2-c314-dad129ae971d");
-	public static final String CREATE_DEPLOYER_CLASS_NAME = "com.simibubi.create.content.kinetics.deployer.DeployerFakePlayer";
 	public static final String TAG_PREFIX = "#";
 	public static final String BREAK_PREFIX = "break$";
 	public static final String HAND_PREFIX = "hand$";
 	public static final String ANYTHING_PREFIX = "anything$";
 	public static final String INTERACT_PREFIX = "interact$";
 	public static final String FULL_PREFIX = "full$";
-	private Class<?> createDeployerClass;
 	private final TriFunction<IPlayerConfig, Entity, Entity, IPlayerConfigOptionSpecAPI<Integer>> usedDroppedItemProtectionOptionGetter = this::getUsedDroppedItemProtectionOption;
 	private final TriFunction<IPlayerConfig, Entity, Entity, IPlayerConfigOptionSpecAPI<Integer>> usedExperienceOrbProtectionOptionGetter = (c, e, a) -> PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_XP_PICKUP;
 
