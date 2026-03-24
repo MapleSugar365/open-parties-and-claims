@@ -1744,7 +1744,13 @@ public class ChunkProtection
 		IPlayerChunkClaim claim = claimsManager.get(world.dimension().location(), new ChunkPos(pos));
 		IPlayerConfigManager playerConfigs = serverData.getPlayerConfigs();
 		IPlayerConfig config = getClaimConfig(playerConfigs, claim);
-		return ((config.getType() == PlayerConfigType.WILDERNESS && !isWildernessProtected(world.dimension().location())) || config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS)) && config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_RAIDS);
+		if (config.getType() == PlayerConfigType.WILDERNESS) {
+			if (!isWildernessProtected(world.dimension().location()))
+				return false;
+		} else if (!config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS)) {
+			return false;
+		}
+		return config.getEffective(PlayerConfigOptions.PROTECT_CLAIMED_CHUNKS_RAIDS);
 	}
 
 	public boolean onMobSpawn(IServerData<CM, ?> serverData, Entity entity, double x, double y, double z, MobSpawnType spawnReason) {
